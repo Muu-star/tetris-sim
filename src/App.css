@@ -1,0 +1,387 @@
+/* Global styles for the Tetris Trainer app */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background-color: #0a0a0a;
+  color: #ffffff;
+  line-height: 1.6;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Common page styles */
+.simulation-page,
+.ren-page,
+.tspin-page,
+.drill-page,
+.optimization-page {
+  padding: 20px 0;
+}
+
+/* Header styles for all pages */
+.simulation-header,
+.ren-header,
+.tspin-header,
+.drill-header,
+.optimization-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  border-radius: 12px;
+  border: 1px solid #333;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.simulation-header h2,
+.ren-header h2,
+.tspin-header h2,
+.drill-header h2,
+.optimization-header h2 {
+  margin: 0;
+  color: #00d4ff;
+  font-size: 28px;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+}
+
+/* Content layout */
+.simulation-content,
+.ren-content,
+.tspin-content,
+.drill-content,
+.optimization-content {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 24px;
+}
+
+/* Board section */
+.board-section {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  border-radius: 12px;
+  border: 1px solid #333;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Controls section */
+.simulation-controls,
+.ren-controls,
+.tspin-controls,
+.drill-controls,
+.optimization-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Common control panel styles */
+.edit-controls,
+.play-controls,
+.save-controls,
+.stats-section,
+.preset-selection,
+.setup-selection,
+.current-problem,
+.problem-info,
+.optimization-stats,
+.solution-comparison,
+.detection-panel,
+.completion-panel,
+.drill-algorithm,
+.optimization-tips,
+.ren-tips,
+.tspin-guide {
+  padding: 20px;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  border-radius: 12px;
+  border: 1px solid #333;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.edit-controls h3,
+.play-controls h3,
+.save-controls h3,
+.stats-section h3,
+.preset-selection h3,
+.setup-selection h3,
+.current-problem h3,
+.problem-info h3,
+.optimization-stats h3,
+.solution-comparison h3,
+.detection-panel h3,
+.completion-panel h3,
+.drill-algorithm h3,
+.optimization-tips h3,
+.ren-tips h3,
+.tspin-guide h3 {
+  margin: 0 0 16px 0;
+  color: #00d4ff;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Button styles */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.start-btn,
+.record-btn {
+  background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+  color: #000;
+  padding: 12px 24px;
+  font-size: 14px;
+  box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+}
+
+.start-btn:hover,
+.record-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
+}
+
+.stop-btn,
+.reset-btn {
+  background: linear-gradient(135deg, #666 0%, #444 100%);
+  color: #fff;
+  padding: 12px 24px;
+  font-size: 14px;
+}
+
+.stop-btn:hover,
+.reset-btn:hover {
+  background: linear-gradient(135deg, #777 0%, #555 100%);
+  transform: translateY(-1px);
+}
+
+.save-btn {
+  background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%);
+  color: #000;
+  padding: 12px 24px;
+  font-size: 14px;
+  box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+}
+
+.save-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 255, 136, 0.4);
+}
+
+.clear-btn {
+  background: linear-gradient(135deg, #ff4444 0%, #cc3333 100%);
+  color: #fff;
+  padding: 10px 20px;
+  font-size: 14px;
+}
+
+.clear-btn:hover {
+  background: linear-gradient(135deg, #ff6666 0%, #ee4444 100%);
+  transform: translateY(-1px);
+}
+
+/* Status indicators */
+.status-ready {
+  color: #00ff88;
+  font-weight: 600;
+}
+
+.status-error {
+  color: #ff4444;
+  font-weight: 600;
+}
+
+.status-indicator {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.status-indicator.success {
+  background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%);
+  color: #000;
+  box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+}
+
+.status-indicator.inactive {
+  background: #333;
+  color: #aaa;
+}
+
+/* Performance badges */
+.performance-indicator .status-badge {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.status-badge.optimal {
+  background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%);
+  color: #000;
+}
+
+.status-badge.good {
+  background: linear-gradient(135deg, #ffaa00 0%, #cc8800 100%);
+  color: #000;
+}
+
+.status-badge.acceptable {
+  background: linear-gradient(135deg, #ff6600 0%, #cc4400 100%);
+  color: #fff;
+}
+
+.status-badge.poor {
+  background: linear-gradient(135deg, #ff4444 0%, #cc3333 100%);
+  color: #fff;
+}
+
+.status-badge.unknown {
+  background: #333;
+  color: #aaa;
+}
+
+/* Tags */
+.tag {
+  display: inline-block;
+  padding: 4px 8px;
+  background: #333;
+  color: #00d4ff;
+  border-radius: 12px;
+  font-size: 12px;
+  margin: 2px;
+  border: 1px solid #555;
+}
+
+/* Lists */
+ul {
+  padding-left: 20px;
+  color: #ccc;
+}
+
+li {
+  margin-bottom: 8px;
+}
+
+/* Input fields */
+input[type="text"],
+input[type="number"] {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background-color: #2a2a2a;
+  color: #fff;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus {
+  outline: none;
+  border-color: #00d4ff;
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .simulation-content,
+  .ren-content,
+  .tspin-content,
+  .drill-content,
+  .optimization-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .simulation-controls,
+  .ren-controls,
+  .tspin-controls,
+  .drill-controls,
+  .optimization-controls {
+    order: -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .simulation-header,
+  .ren-header,
+  .tspin-header,
+  .drill-header,
+  .optimization-header {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+  
+  .simulation-header h2,
+  .ren-header h2,
+  .tspin-header h2,
+  .drill-header h2,
+  .optimization-header h2 {
+    font-size: 24px;
+  }
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(0, 212, 255, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(0, 212, 255, 0.6); }
+}
+
+.recording-indicator {
+  animation: pulse 1s infinite;
+  color: #ff4444;
+  font-weight: 600;
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}

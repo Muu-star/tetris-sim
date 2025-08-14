@@ -1,0 +1,276 @@
+.simulation-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.simulation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background-color: #1a1a1a;
+  border-radius: 12px;
+  border: 1px solid #333;
+}
+
+.simulation-header h2 {
+  margin: 0;
+  color: #00d4ff;
+  font-size: 28px;
+}
+
+.mode-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.mode-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background-color: #333;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.mode-btn:hover {
+  background-color: #444;
+}
+
+.mode-btn.active {
+  background-color: #00d4ff;
+  color: #000;
+}
+
+.simulation-content {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 24px;
+}
+
+.board-section {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  background-color: #1a1a1a;
+  border-radius: 12px;
+  border: 1px solid #333;
+}
+
+.controls-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.edit-controls,
+.play-controls,
+.save-controls,
+.stats-section {
+  padding: 20px;
+  background-color: #1a1a1a;
+  border-radius: 12px;
+  border: 1px solid #333;
+}
+
+.edit-controls h3,
+.play-controls h3,
+.save-controls h3,
+.stats-section h3 {
+  margin: 0 0 16px 0;
+  color: #00d4ff;
+  font-size: 18px;
+}
+
+.piece-selector {
+  margin-bottom: 16px;
+}
+
+.piece-selector label {
+  display: block;
+  margin-bottom: 8px;
+  color: #ccc;
+  font-weight: 500;
+}
+
+.piece-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.piece-btn {
+  padding: 8px;
+  border: 1px solid #555;
+  border-radius: 4px;
+  background-color: #2a2a2a;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: bold;
+}
+
+.piece-btn:hover {
+  background-color: #3a3a3a;
+  border-color: #777;
+}
+
+.piece-btn.active {
+  background-color: #00d4ff;
+  color: #000;
+  border-color: #00d4ff;
+}
+
+.clear-btn,
+.record-btn,
+.stop-btn,
+.save-btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-btn {
+  background-color: #ff4444;
+  color: #fff;
+}
+
+.clear-btn:hover {
+  background-color: #ff6666;
+}
+
+.record-btn {
+  background-color: #ff4444;
+  color: #fff;
+}
+
+.record-btn:hover {
+  background-color: #ff6666;
+}
+
+.stop-btn {
+  background-color: #666;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.stop-btn:hover {
+  background-color: #777;
+}
+
+.save-btn {
+  background-color: #00d4ff;
+  color: #000;
+}
+
+.save-btn:hover {
+  background-color: #33ddff;
+}
+
+.recording-indicator {
+  text-align: center;
+  color: #ff4444;
+  font-weight: 500;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.game-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px;
+  background-color: #2a2a2a;
+  border-radius: 6px;
+}
+
+.game-info > div {
+  display: flex;
+  justify-content: space-between;
+  color: #ccc;
+}
+
+.input-group {
+  margin-bottom: 12px;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 4px;
+  color: #ccc;
+  font-weight: 500;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #555;
+  border-radius: 4px;
+  background-color: #2a2a2a;
+  color: #fff;
+  font-size: 14px;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #00d4ff;
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  color: #ccc;
+}
+
+.status-ready {
+  color: #00ff88;
+  font-weight: 500;
+}
+
+.status-error {
+  color: #ff4444;
+  font-weight: 500;
+}
+
+@media (max-width: 1024px) {
+  .simulation-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .controls-section {
+    order: -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .simulation-header {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+  
+  .mode-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .piece-buttons {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
