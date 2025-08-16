@@ -1,10 +1,13 @@
-import React, { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useReducer, useCallback, useRef } from 'react';
 import { initializePersistence } from '../lib/persist';
 import { createBoard, isValidPosition, placePiece, clearLines, getDropPosition } from '../game/rules';
 import { createPiece, rotatePiece } from '../game/srs';
 import { createBagGenerator } from '../game/bag';
 import { createInputHandler } from '../game/input';
+import { createGamepadHandler } from '../game/gamepad';
+import { useKeyConfig } from './KeyConfigContext';
 import type { Board, Piece, PieceType, GameState, BagGenerator, InputHandler } from '../game/types';
+import type { GamepadHandler } from '../game/gamepad';
 
 interface GameContextState {
   gameState: GameState;
@@ -32,6 +35,7 @@ type GameAction =
   | { type: 'MOVE_PIECE'; payload: { direction: 'left' | 'right' } }
   | { type: 'ROTATE_PIECE'; payload: { clockwise: boolean } }
   | { type: 'DROP_PIECE'; payload: { hard?: boolean } }
+  | { type: 'SOFT_DROP_RELEASE' }
   | { type: 'HOLD_PIECE' }
   | { type: 'PLACE_PIECE_AT'; payload: { x: number; y: number; piece: Piece } }
   | { type: 'SET_BOARD'; payload: Board }
@@ -41,7 +45,7 @@ type GameAction =
 
 const initialBoard = createBoard();
 
-const initialState: GameContextState = {
+const createInitialState = (): GameContextState => ({
   gameState: {
     board: initialBoard,
     currentPiece: null,
@@ -54,6 +58,8 @@ const initialState: GameContextState = {
     canHold: true,
     lockDelay: 0,
     softDropLockReset: false,
+    wasSoftDropping: false,
+    isSoftDropping: false,
   },
   inputHandler: createInputHandler(),
   bag: createBagGenerator(),
@@ -61,7 +67,7 @@ const initialState: GameContextState = {
   isPersistenceReady: false,
   currentMoveCount: 0,
   recordedMoves: [],
-};
+});
 
 function gameReducer(state: GameContextState, action: GameAction): GameContextState {
   switch (action.type) {
@@ -106,6 +112,8 @@ function gameReducer(state: GameContextState, action: GameAction): GameContextSt
           canHold: true,
           lockDelay: 0,
           softDropLockReset: false,
+          wasSoftDropping: false,
+          isSoftDropping: false,
         },
         bag: newBag,
         isPlaying: false,
@@ -161,6 +169,7 @@ function gameReducer(state: GameContextState, action: GameAction): GameContextSt
       const { hard } = action.payload;
       
       if (hard) {
+        // Hard drop - move to lowest position and lock immediately
         const dropPosition = getDropPosition(state.gameState.board, piece);
         const droppedPiece = { ...piece, position: dropPosition };
         const newBoard = placePiece(state.gameState.board, droppedPiece);
@@ -170,34 +179,101 @@ function gameReducer(state: GameContextState, action: GameAction): GameContextSt
         const nextPieceType = state.bag.next();
         const nextPiece = createPiece(nextPieceType);
         
+        // Check for game over
+        const isGameOver = !isValidPosition(clearedBoard, nextPiece, nextPiece.position);
+        
         return {
           ...state,
           gameState: {
             ...state.gameState,
             board: clearedBoard,
-            currentPiece: nextPiece,
+            currentPiece: isGameOver ? null : nextPiece,
             nextPieces: state.bag.peek(5),
             lines: state.gameState.lines + linesCleared,
-            score: state.gameState.score + (linesCleared * 100),
+            score: state.gameState.score + (linesCleared * 100) + 2, // +2 for hard drop
+            canHold: true,
+            lockDelay: 0,
+            isGameOver,
+            wasSoftDropping: false,
+            isSoftDropping: false,
           },
           currentMoveCount: state.currentMoveCount + 1,
         };
       } else {
-        // Soft drop
+        // Soft drop - move down at 20 cells/sec while holding
         const newY = piece.position.y + 1;
         const newPosition = { x: piece.position.x, y: newY };
         
         if (isValidPosition(state.gameState.board, piece, newPosition)) {
+          // Can move down
           return {
             ...state,
             gameState: {
               ...state.gameState,
               currentPiece: { ...piece, position: newPosition },
+              lockDelay: 0,
+              isSoftDropping: true,
+              wasSoftDropping: state.gameState.isSoftDropping,
             },
           };
+        } else {
+          // Can't move down - check if we should lock
+          // Lock if: was soft dropping, released, and pressed again
+          if (state.gameState.wasSoftDropping && !state.gameState.isSoftDropping) {
+            // This is a re-press after release while grounded - lock the piece
+            const newBoard = placePiece(state.gameState.board, piece);
+            const { board: clearedBoard, linesCleared } = clearLines(newBoard);
+            
+            // Spawn next piece
+            const nextPieceType = state.bag.next();
+            const nextPiece = createPiece(nextPieceType);
+            
+            // Check for game over
+            const isGameOver = !isValidPosition(clearedBoard, nextPiece, nextPiece.position);
+            
+            return {
+              ...state,
+              gameState: {
+                ...state.gameState,
+                board: clearedBoard,
+                currentPiece: isGameOver ? null : nextPiece,
+                nextPieces: state.bag.peek(5),
+                lines: state.gameState.lines + linesCleared,
+                score: state.gameState.score + (linesCleared * 100) + 1, // +1 for soft drop
+                canHold: true,
+                lockDelay: 0,
+                isGameOver,
+                wasSoftDropping: false,
+                isSoftDropping: false,
+              },
+              currentMoveCount: state.currentMoveCount + 1,
+            };
+          } else {
+            // Just mark that we're soft dropping while grounded
+            return {
+              ...state,
+              gameState: {
+                ...state.gameState,
+                isSoftDropping: true,
+                wasSoftDropping: state.gameState.isSoftDropping,
+                lockDelay: 500, // Start lock delay timer when grounded
+              },
+            };
+          }
         }
       }
-      return state;
+    }
+
+    case 'SOFT_DROP_RELEASE': {
+      // Mark that soft drop was released
+      return {
+        ...state,
+        gameState: {
+          ...state.gameState,
+          wasSoftDropping: state.gameState.isSoftDropping,
+          isSoftDropping: false,
+        },
+      };
     }
 
     case 'HOLD_PIECE': {
@@ -278,6 +354,65 @@ function gameReducer(state: GameContextState, action: GameAction): GameContextSt
       };
     }
 
+    case 'UPDATE_GAME': {
+      // Gravity is set to 0 - pieces don't fall automatically
+      // Only handle lock delay when piece is at the bottom and can't move down
+      if (!state.gameState.currentPiece || !state.isPlaying || state.gameState.isGameOver) {
+        return state;
+      }
+
+      const { deltaTime } = action.payload;
+      const piece = state.gameState.currentPiece;
+      
+      // Check if piece is grounded (can't move down)
+      const testPosition = { x: piece.position.x, y: piece.position.y + 1 };
+      const isGrounded = !isValidPosition(state.gameState.board, piece, testPosition);
+      
+      if (isGrounded && state.gameState.lockDelay > 0) {
+        // Piece is grounded and has lock delay active
+        const newLockDelay = state.gameState.lockDelay + deltaTime;
+        
+        // If lock delay exceeded, place the piece
+        if (newLockDelay >= 500) { // 500ms lock delay
+          const newBoard = placePiece(state.gameState.board, piece);
+          const { board: clearedBoard, linesCleared } = clearLines(newBoard);
+          
+          // Spawn next piece
+          const nextPieceType = state.bag.next();
+          const nextPiece = createPiece(nextPieceType);
+          
+          // Check for game over
+          const isGameOver = !isValidPosition(clearedBoard, nextPiece, nextPiece.position);
+          
+          return {
+            ...state,
+            gameState: {
+              ...state.gameState,
+              board: clearedBoard,
+              currentPiece: isGameOver ? null : nextPiece,
+              nextPieces: state.bag.peek(5),
+              lines: state.gameState.lines + linesCleared,
+              score: state.gameState.score + (linesCleared * 100),
+              canHold: true,
+              lockDelay: 0,
+              isGameOver,
+            },
+          };
+        } else {
+          // Update lock delay
+          return {
+            ...state,
+            gameState: {
+              ...state.gameState,
+              lockDelay: newLockDelay,
+            },
+          };
+        }
+      }
+      
+      return state;
+    }
+
     default:
       return state;
   }
@@ -305,7 +440,13 @@ interface GameContextValue {
 const GameContext = createContext<GameContextValue | null>(null);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(gameReducer, initialState);
+  const keyConfigContext = useKeyConfig();
+  const config = keyConfigContext?.config;
+  const [state, dispatch] = useReducer(gameReducer, createInitialState());
+  const gamepadHandlerRef = useRef<GamepadHandler | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const lastUpdateTimeRef = useRef<number>(0);
+  const prevSoftDropStateRef = useRef<boolean>(false);
 
   useEffect(() => {
     const initPersistence = async () => {
@@ -320,6 +461,161 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initPersistence();
   }, []);
+
+  // Initialize gamepad handler and update with config
+  useEffect(() => {
+    gamepadHandlerRef.current = createGamepadHandler();
+    if (gamepadHandlerRef.current && config) {
+      gamepadHandlerRef.current.updateButtonMapping(config.gamepad);
+      gamepadHandlerRef.current.updateTimings(config.das, config.arr);
+    }
+    
+    return () => {
+      gamepadHandlerRef.current = null;
+    };
+  }, [config]);
+  
+  // Update input handler with keyboard config
+  useEffect(() => {
+    if (state.inputHandler && config && 'updateKeyMapping' in state.inputHandler) {
+      (state.inputHandler as any).updateKeyMapping(config.keyboard);
+    }
+  }, [state.inputHandler, config]);
+
+  // Setup keyboard event listeners
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!state.isPlaying) return;
+      
+      // Prevent default for game keys
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Space'].includes(e.key)) {
+        e.preventDefault();
+      }
+      
+      state.inputHandler.keyDown(e.key);
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!state.isPlaying) return;
+      state.inputHandler.keyUp(e.key);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [state.isPlaying, state.inputHandler]);
+
+  // Game loop with input processing
+  useEffect(() => {
+    if (!state.isPlaying) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      return;
+    }
+
+    const gameLoop = (currentTime: number) => {
+      const deltaTime = currentTime - lastUpdateTimeRef.current;
+      lastUpdateTimeRef.current = currentTime;
+
+      // Update input handler with delta time
+      state.inputHandler.update(deltaTime);
+      
+      // Process gamepad input separately
+      if (gamepadHandlerRef.current) {
+        // Update gamepad state with DAS/ARR timing
+        gamepadHandlerRef.current.update(deltaTime);
+        
+        const presses = gamepadHandlerRef.current.getButtonPresses();
+        
+        // Handle gamepad button presses directly (don't route through keyboard handler)
+        for (const action of presses) {
+          switch (action) {
+            case 'left':
+              dispatch({ type: 'MOVE_PIECE', payload: { direction: 'left' } });
+              break;
+            case 'right':
+              dispatch({ type: 'MOVE_PIECE', payload: { direction: 'right' } });
+              break;
+            case 'softDrop':
+              dispatch({ type: 'DROP_PIECE', payload: { hard: false } });
+              break;
+            case 'hardDrop':
+              dispatch({ type: 'DROP_PIECE', payload: { hard: true } });
+              break;
+            case 'rotateClockwise':
+              dispatch({ type: 'ROTATE_PIECE', payload: { clockwise: true } });
+              break;
+            case 'rotateCounterclockwise':
+              dispatch({ type: 'ROTATE_PIECE', payload: { clockwise: false } });
+              break;
+            case 'hold':
+              dispatch({ type: 'HOLD_PIECE' });
+              break;
+            case 'undo':
+              dispatch({ type: 'UNDO_MOVE' });
+              break;
+            case 'reset':
+              dispatch({ type: 'RESET_GAME' });
+              break;
+          }
+        }
+      }
+      
+      // Process keyboard input (can work alongside gamepad)
+      const inputState = state.inputHandler.getState();
+      
+      // Check if soft drop was released
+      if (prevSoftDropStateRef.current && !inputState.down) {
+        dispatch({ type: 'SOFT_DROP_RELEASE' });
+      }
+      prevSoftDropStateRef.current = inputState.down;
+      
+      if (inputState.left) {
+        dispatch({ type: 'MOVE_PIECE', payload: { direction: 'left' } });
+      }
+      if (inputState.right) {
+        dispatch({ type: 'MOVE_PIECE', payload: { direction: 'right' } });
+      }
+      if (inputState.down) {
+        dispatch({ type: 'DROP_PIECE', payload: { hard: false } });
+      }
+      if (inputState.hardDrop) {
+        dispatch({ type: 'DROP_PIECE', payload: { hard: true } });
+      }
+      if (inputState.rotateClockwise) {
+        dispatch({ type: 'ROTATE_PIECE', payload: { clockwise: true } });
+      }
+      if (inputState.rotateCounterclockwise) {
+        dispatch({ type: 'ROTATE_PIECE', payload: { clockwise: false } });
+      }
+      if (inputState.hold) {
+        dispatch({ type: 'HOLD_PIECE' });
+      }
+      
+      // Update game state
+      dispatch({ type: 'UPDATE_GAME', payload: { deltaTime } });
+      
+      // Continue game loop
+      animationFrameRef.current = requestAnimationFrame(gameLoop);
+    };
+
+    // Start game loop
+    lastUpdateTimeRef.current = performance.now();
+    animationFrameRef.current = requestAnimationFrame(gameLoop);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [state.isPlaying, state.inputHandler]);
 
   const actions = {
     startGame: useCallback(() => {

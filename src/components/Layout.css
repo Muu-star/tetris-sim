@@ -32,6 +32,7 @@
 .nav {
   display: flex;
   gap: 8px;
+  flex: 1;
 }
 
 .nav-item {
@@ -68,6 +69,28 @@
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.key-config-btn {
+  margin-left: 16px;
+  padding: 10px;
+  background: #333;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+}
+
+.key-config-btn:hover {
+  background: #444;
+  transform: rotate(90deg);
 }
 
 .main {

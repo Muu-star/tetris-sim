@@ -30,6 +30,8 @@ export interface GameState {
   canHold: boolean;
   lockDelay: number;
   softDropLockReset: boolean;
+  wasSoftDropping: boolean; // Track if soft drop was active in previous frame
+  isSoftDropping: boolean; // Track if soft drop is currently active
 }
 
 export interface InputState {

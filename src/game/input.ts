@@ -1,5 +1,6 @@
 import type { InputState, InputTimings } from './types';
 import { INPUT_TIMINGS } from './types';
+import type { KeyMapping } from '../lib/keyconfig/types';
 
 export interface InputHandler {
   update(deltaTime: number): void;
@@ -7,6 +8,7 @@ export interface InputHandler {
   keyDown(key: string): void;
   keyUp(key: string): void;
   reset(): void;
+  updateKeyMapping(mapping: KeyMapping): void;
 }
 
 interface KeyTimings {
@@ -29,9 +31,15 @@ export class StandardInputHandler implements InputHandler {
   private keyTimings: Map<string, KeyTimings> = new Map();
   private timings: InputTimings;
   private frameTime = 1000 / 60; // 60fps in milliseconds
+  private keyMapping: KeyMapping | null = null;
   
-  constructor(timings: InputTimings = INPUT_TIMINGS) {
+  constructor(timings: InputTimings = INPUT_TIMINGS, keyMapping?: KeyMapping) {
     this.timings = timings;
+    this.keyMapping = keyMapping || null;
+  }
+  
+  updateKeyMapping(mapping: KeyMapping): void {
+    this.keyMapping = mapping;
   }
   
   update(deltaTime: number): void {
@@ -162,6 +170,17 @@ export class StandardInputHandler implements InputHandler {
   }
   
   private normalizeKey(key: string): string {
+    // Use custom key mapping if available
+    if (this.keyMapping) {
+      for (const [action, keys] of Object.entries(this.keyMapping)) {
+        if (keys.includes(key)) {
+          return action;
+        }
+      }
+      return key;
+    }
+    
+    // Fallback to default mapping
     const keyMap: Record<string, string> = {
       'ArrowLeft': 'left',
       'ArrowRight': 'right',
