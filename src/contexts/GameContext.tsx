@@ -45,29 +45,33 @@ type GameAction =
 
 const initialBoard = createBoard();
 
-const createInitialState = (): GameContextState => ({
-  gameState: {
-    board: initialBoard,
-    currentPiece: null,
-    heldPiece: null,
-    nextPieces: [],
-    score: 0,
-    lines: 0,
-    level: 1,
-    isGameOver: false,
-    canHold: true,
-    lockDelay: 0,
-    softDropLockReset: false,
-    wasSoftDropping: false,
-    isSoftDropping: false,
-  },
-  inputHandler: createInputHandler(),
-  bag: createBagGenerator(),
-  isPlaying: false,
-  isPersistenceReady: false,
-  currentMoveCount: 0,
-  recordedMoves: [],
-});
+const createInitialState = (): GameContextState => {
+  const bag = createBagGenerator();
+
+  return {
+    gameState: {
+      board: initialBoard,
+      currentPiece: null,
+      heldPiece: null,
+      nextPieces: bag.peek(5),
+      score: 0,
+      lines: 0,
+      level: 1,
+      isGameOver: false,
+      canHold: true,
+      lockDelay: 0,
+      softDropLockReset: false,
+      wasSoftDropping: false,
+      isSoftDropping: false,
+    },
+    inputHandler: createInputHandler(),
+    bag,
+    isPlaying: false,
+    isPersistenceReady: false,
+    currentMoveCount: 0,
+    recordedMoves: [],
+  };
+};
 
 function gameReducer(state: GameContextState, action: GameAction): GameContextState {
   switch (action.type) {
