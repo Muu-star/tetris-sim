@@ -532,6 +532,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         gamepadHandlerRef.current.update(deltaTime);
         
         const presses = gamepadHandlerRef.current.getButtonPresses();
+        const releases = gamepadHandlerRef.current.getButtonReleases();
+        
+        // Handle soft drop release
+        if (releases.has('softDrop')) {
+          dispatch({ type: 'SOFT_DROP_RELEASE' });
+        }
         
         // Handle gamepad button presses directly (don't route through keyboard handler)
         for (const action of presses) {

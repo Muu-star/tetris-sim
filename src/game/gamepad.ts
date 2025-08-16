@@ -48,12 +48,15 @@ interface ButtonTiming {
 class GamepadHandlerImpl implements GamepadHandler {
   private gamepadIndex: number | null = null;
   private previousState: GamepadState | null = null;
+  private currentState: GamepadState | null = null;
   private deadzone = 0.3;
   private buttonTimings: Map<string, ButtonTiming> = new Map();
   private das = 10; // frames (167ms at 60fps)
   private arr = 2;  // frames (33ms at 60fps)
   private frameTime = 1000 / 60; // 60fps in milliseconds
   private buttonMapping: GamepadMapping | null = null;
+  private buttonPresses: Set<string> = new Set();
+  private buttonReleases: Set<string> = new Set();
 
   constructor() {
     this.setupEventListeners();
@@ -155,18 +158,113 @@ class GamepadHandlerImpl implements GamepadHandler {
   }
 
   update(deltaTime: number): void {
-    const currentState = this.getState();
-    if (!currentState) {
+    // Store previous state
+    this.previousState = this.currentState;
+    
+    // Get new state
+    this.currentState = this.getState();
+    
+    // Clear previous frame's presses and releases
+    this.buttonPresses.clear();
+    this.buttonReleases.clear();
+    
+    if (!this.currentState) {
       this.previousState = null;
       return;
     }
 
+    // Detect button presses and releases
+    this.detectButtonChanges();
+    
     // Update button timings for DAS/ARR
-    this.updateButtonTiming('left', currentState.buttons.left || currentState.axes.leftX < -0.5, deltaTime);
-    this.updateButtonTiming('right', currentState.buttons.right || currentState.axes.leftX > 0.5, deltaTime);
-    this.updateButtonTiming('softDrop', currentState.buttons.down || currentState.axes.leftY > 0.5, deltaTime);
+    this.updateButtonTiming('left', this.currentState.buttons.left || this.currentState.axes.leftX < -0.5, deltaTime);
+    this.updateButtonTiming('right', this.currentState.buttons.right || this.currentState.axes.leftX > 0.5, deltaTime);
+    this.updateButtonTiming('softDrop', this.currentState.buttons.down || this.currentState.axes.leftY > 0.5, deltaTime);
+  }
 
-    this.previousState = currentState;
+  private detectButtonChanges(): void {
+    if (!this.currentState || !this.previousState) {
+      return;
+    }
+
+    // Use custom button mapping if available
+    if (this.buttonMapping) {
+      // Check each action's mapped buttons
+      for (const [action, buttons] of Object.entries(this.buttonMapping)) {
+        if (action === 'useLeftStick' || action === 'useRightStick') continue;
+        
+        const buttonList = buttons as number[];
+        for (const buttonIndex of buttonList) {
+          const buttonName = this.getButtonName(buttonIndex);
+          const isPressed = this.currentState.buttons[buttonName];
+          const wasPressed = this.previousState.buttons[buttonName];
+          
+          // For movement actions, handle with DAS/ARR
+          if (['left', 'right', 'softDrop'].includes(action)) {
+            // DAS/ARR is handled separately in updateButtonTiming
+            continue;
+          }
+          
+          // Instant actions - detect press
+          if (isPressed && !wasPressed) {
+            this.buttonPresses.add(action);
+          }
+          
+          // Detect release
+          if (!isPressed && wasPressed) {
+            this.buttonReleases.add(action);
+          }
+        }
+      }
+      
+      // Handle analog sticks if enabled
+      if (this.buttonMapping.useLeftStick) {
+        // Hard drop on stick up
+        if (this.currentState.axes.leftY < -0.5 && this.previousState.axes.leftY >= -0.5) {
+          this.buttonPresses.add('hardDrop');
+        }
+        
+        // Detect soft drop release for analog stick
+        const wasDownStick = this.previousState.axes.leftY > 0.5;
+        const isDownStick = this.currentState.axes.leftY > 0.5;
+        if (wasDownStick && !isDownStick) {
+          this.buttonReleases.add('softDrop');
+        }
+      }
+    } else {
+      // Default mapping
+      // Instant button presses
+      if (this.currentState.buttons.up && !this.previousState.buttons.up) {
+        this.buttonPresses.add('hardDrop');
+      }
+      if (this.currentState.buttons.circle && !this.previousState.buttons.circle) {
+        this.buttonPresses.add('rotateClockwise');
+      }
+      if (this.currentState.buttons.cross && !this.previousState.buttons.cross) {
+        this.buttonPresses.add('rotateCounterclockwise');
+      }
+      if (this.currentState.buttons.l1 && !this.previousState.buttons.l1) {
+        this.buttonPresses.add('hold');
+      }
+      if (this.currentState.buttons.r1 && !this.previousState.buttons.r1) {
+        this.buttonPresses.add('undo');
+      }
+      if (this.currentState.buttons.options && !this.previousState.buttons.options) {
+        this.buttonPresses.add('reset');
+      }
+      
+      // Analog stick hard drop
+      if (this.currentState.axes.leftY < -0.5 && this.previousState.axes.leftY >= -0.5) {
+        this.buttonPresses.add('hardDrop');
+      }
+      
+      // Detect soft drop release
+      const wasDown = this.previousState.buttons.down || this.previousState.axes.leftY > 0.5;
+      const isDown = this.currentState.buttons.down || this.currentState.axes.leftY > 0.5;
+      if (wasDown && !isDown) {
+        this.buttonReleases.add('softDrop');
+      }
+    }
   }
 
   private updateButtonTiming(button: string, isPressed: boolean, deltaTime: number): void {
@@ -190,89 +288,13 @@ class GamepadHandlerImpl implements GamepadHandler {
   }
 
   getButtonPresses(): Set<string> {
-    const currentState = this.getState();
-    const presses = new Set<string>();
-
-    if (!currentState) {
-      return presses;
-    }
-
-    // Check for button state changes (pressed this frame)
-    if (!this.previousState || !this.previousState.connected) {
-      return presses;
-    }
-
-    // Use custom button mapping if available
-    if (this.buttonMapping) {
-      // Check each action's mapped buttons
-      for (const [action, buttons] of Object.entries(this.buttonMapping)) {
-        if (action === 'useLeftStick' || action === 'useRightStick') continue;
-        
-        const buttonList = buttons as number[];
-        for (const buttonIndex of buttonList) {
-          const buttonName = this.getButtonName(buttonIndex);
-          const isPressed = currentState.buttons[buttonName];
-          const wasPressed = this.previousState?.buttons[buttonName];
-          
-          // Handle DAS/ARR for movement actions
-          if (['left', 'right', 'softDrop'].includes(action)) {
-            if (isPressed) {
-              this.checkMovementWithDAS(action, presses);
-            }
-          } else {
-            // Instant actions
-            if (isPressed && !wasPressed) {
-              presses.add(action);
-            }
-          }
-        }
-      }
-      
-      // Handle analog sticks if enabled
-      if (this.buttonMapping.useLeftStick) {
-        if (currentState.axes.leftX < -0.5) {
-          this.checkMovementWithDAS('left', presses);
-        }
-        if (currentState.axes.leftX > 0.5) {
-          this.checkMovementWithDAS('right', presses);
-        }
-        if (currentState.axes.leftY > 0.5) {
-          this.checkMovementWithDAS('softDrop', presses);
-        }
-        if (currentState.axes.leftY < -0.5 && this.previousState.axes.leftY >= -0.5) {
-          presses.add('hardDrop');
-        }
-      }
-    } else {
-      // Fallback to default mapping
-      this.checkMovementWithDAS('left', presses);
-      this.checkMovementWithDAS('right', presses);
-      this.checkMovementWithDAS('softDrop', presses);
-
-      if (currentState.buttons.up && !this.previousState.buttons.up) {
-        presses.add('hardDrop');
-      }
-      if (currentState.axes.leftY < -0.5 && this.previousState.axes.leftY >= -0.5) {
-        presses.add('hardDrop');
-      }
-
-      if (currentState.buttons.circle && !this.previousState.buttons.circle) {
-        presses.add('rotateClockwise');
-      }
-      if (currentState.buttons.cross && !this.previousState.buttons.cross) {
-        presses.add('rotateCounterclockwise');
-      }
-      if (currentState.buttons.l1 && !this.previousState.buttons.l1) {
-        presses.add('hold');
-      }
-      if (currentState.buttons.r1 && !this.previousState.buttons.r1) {
-        presses.add('undo');
-      }
-      if (currentState.buttons.options && !this.previousState.buttons.options) {
-        presses.add('reset');
-      }
-    }
-
+    const presses = new Set<string>(this.buttonPresses);
+    
+    // Add DAS/ARR controlled movement
+    this.checkMovementWithDAS('left', presses);
+    this.checkMovementWithDAS('right', presses);
+    this.checkMovementWithDAS('softDrop', presses);
+    
     return presses;
   }
 
@@ -297,33 +319,7 @@ class GamepadHandlerImpl implements GamepadHandler {
   }
 
   getButtonReleases(): Set<string> {
-    const currentState = this.getState();
-    const releases = new Set<string>();
-
-    if (!currentState || !this.previousState) {
-      return releases;
-    }
-
-    // Check for button releases
-    const wasLeftPressed = this.previousState.buttons.left || this.previousState.axes.leftX < -0.5;
-    const isLeftPressed = currentState.buttons.left || currentState.axes.leftX < -0.5;
-    if (!isLeftPressed && wasLeftPressed) {
-      releases.add('left');
-    }
-
-    const wasRightPressed = this.previousState.buttons.right || this.previousState.axes.leftX > 0.5;
-    const isRightPressed = currentState.buttons.right || currentState.axes.leftX > 0.5;
-    if (!isRightPressed && wasRightPressed) {
-      releases.add('right');
-    }
-
-    const wasDownPressed = this.previousState.buttons.down || this.previousState.axes.leftY > 0.5;
-    const isDownPressed = currentState.buttons.down || currentState.axes.leftY > 0.5;
-    if (!isDownPressed && wasDownPressed) {
-      releases.add('softDrop');
-    }
-
-    return releases;
+    return new Set<string>(this.buttonReleases);
   }
 
   isConnected(): boolean {
